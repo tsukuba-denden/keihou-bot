@@ -1,7 +1,7 @@
 {
-  "$schema": "https://raw.githubusercontent.com/microsoft/pyright/main/packages/vscode-pyright/schemas/pyrightconfig.schema.json",
-  "typeCheckingMode": "standard",
-  "reportMissingTypeStubs": false,
-  "venvPath": ".",
-  "venv": ".venv"
+    "$schema": "https://raw.githubusercontent.com/microsoft/pyright/main/packages/vscode-pyright/schemas/pyrightconfig.schema.json",
+    "typeCheckingMode": "standard",
+    "reportMissingTypeStubs": false,
+    "venvPath": ".",
+    "venv": ".venv"
 }

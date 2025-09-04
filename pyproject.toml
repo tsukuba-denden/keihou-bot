@@ -10,10 +10,10 @@ keywords = ["JMA", "alerts", "discord", "tokyo", "apscheduler"]
 
 # Runtime dependencies
 dependencies = [
-  "requests>=2.32.0",
-  "discord.py>=2.4.0",
-  "lxml>=5.2.1",
-  "APScheduler>=3.10.4",
+    "requests>=2.32.0",
+    "discord.py>=2.4.0",
+    "lxml>=5.2.1",
+    "APScheduler>=3.10.4",
 ]
 
 [project.urls]
@@ -22,10 +22,10 @@ Homepage = "https://github.com/tsukuba-denden/keihou-bot"
 # Dev dependencies (uv supports dependency-groups)
 [dependency-groups]
 dev = [
-  "black>=24.0.0",
-  "pylint>=3.2.0",
-  "pytest>=7.0.0",
-  "pytest-asyncio>=0.23.0",
+    "black>=24.0.0",
+    "pylint>=3.2.0",
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.23.0",
 ]
 
 [tool.black]

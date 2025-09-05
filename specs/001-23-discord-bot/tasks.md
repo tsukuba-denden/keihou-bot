@@ -5,26 +5,26 @@
 
 ## Phase 3.1: Setup
 - [ ] T001 [P] Create project structure: `src/`, `tests/`, `data/` directories.
-- [ ] T002 [P] Initialize Python project with `uv` and add dependencies: `requests`, `discord.py`, `lxml`, `APScheduler`.
-- [ ] T003 [P] Configure linting with `pylint` and formatting with `black`.
+- [x] T002 [P] Initialize Python project with `uv` and add dependencies: `requests`, `discord.py`, `lxml`, `APScheduler`.
+- [x] T003 [P] Configure linting with `pylint` and formatting with `black`.
 
 ## Phase 3.2: Core Implementation
-- [ ] T004 Create data model for `Alert` in `src/models.py`.
-- [ ] T005 Implement data storage for sent alerts in `src/storage.py` (using JSON or SQLite).
-- [ ] T006 Implement JMA XML parsing logic in `src/jma_parser.py`.
-- [ ] T007 Implement filtering logic for Tokyo's 23 wards in `src/filter.py`.
-- [ ] T008 Implement Discord notification service in `src/discord_client.py`.
+- [x] T004 Create data model for `Alert` in `src/models.py`.
+- [x] T005 Implement data storage for sent alerts in `src/storage.py` (using JSON or SQLite).
+- [x] T006 Implement JMA XML parsing logic in `src/jma_parser.py`.
+- [x] T007 Implement filtering logic for Tokyo's 23 wards in `src/filter.py`.
+- [x] T008 Implement Discord notification service in `src/discord_client.py`.
 
 ## Phase 3.3: Integration
-- [ ] T009 Integrate JMA data fetching with `requests` in `src/jma_client.py`.
-- [ ] T010 Integrate all modules in `src/main.py` to create the main application loop.
-- [ ] T011 Use `APScheduler` to schedule the JMA data fetching task in `src/main.py`.
+- [x] T009 Integrate JMA data fetching with `requests` in `src/jma_client.py`.
+- [x] T010 Integrate all modules in `src/main.py` to create the main application loop.
+- [x] T011 Use `APScheduler` to schedule the JMA data fetching task in `src/main.py`.
 
 ## Phase 3.4: Testing
-- [ ] T012 [P] Unit test for `Alert` data model in `tests/unit/test_models.py`.
-- [ ] T013 [P] Unit test for data storage in `tests/unit/test_storage.py`.
-- [ ] T014 [P] Unit test for JMA XML parsing in `tests/unit/test_jma_parser.py`.
-- [ ] T015 [P] Unit test for filtering logic in `tests/unit/test_filter.py`.
+- [x] T012 [P] Unit test for `Alert` data model in `tests/unit/test_models.py`.
+- [x] T013 [P] Unit test for data storage in `tests/unit/test_storage.py`.
+- [x] T014 [P] Unit test for JMA XML parsing in `tests/unit/test_jma_parser.py`.
+- [x] T015 [P] Unit test for filtering logic in `tests/unit/test_filter.py`.
 - [ ] T016 [P] Unit test for Discord notification service in `tests/unit/test_discord_client.py`.
 - [ ] T017 Integration test for the main application loop in `tests/integration/test_main.py`.
 

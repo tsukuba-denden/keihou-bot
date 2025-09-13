@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import discord
 from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
@@ -114,20 +115,21 @@ def test_format_alert_without_ward():
 
 @patch("discord.SyncWebhook")
 def test_send_via_webhook_success(mock_webhook_class):
-    """Test successful webhook sending."""
+    """Test successful webhook sending with embeds."""
     mock_webhook = Mock()
     mock_webhook_class.from_url.return_value = mock_webhook
 
     webhook_url = "https://discord.com/api/webhooks/123/abc"
     notifier = DiscordNotifier(webhook_url=webhook_url)
 
-    messages = ["Message 1", "Message 2"]
-    notifier._send_via_webhook(messages)
+    e1 = discord.Embed(title="Message 1")
+    e2 = discord.Embed(title="Message 2")
+    notifier._send_via_webhook([e1, e2])
 
     mock_webhook_class.from_url.assert_called_once_with(webhook_url)
     assert mock_webhook.send.call_count == 2
-    mock_webhook.send.assert_any_call("Message 1")
-    mock_webhook.send.assert_any_call("Message 2")
+    mock_webhook.send.assert_any_call(embed=e1)
+    mock_webhook.send.assert_any_call(embed=e2)
 
 
 def test_send_via_webhook_no_url():
@@ -135,7 +137,7 @@ def test_send_via_webhook_no_url():
     notifier = DiscordNotifier()
 
     with pytest.raises(RuntimeError, match="DISCORD_WEBHOOK_URL is not set"):
-        notifier._send_via_webhook(["test message"])
+        notifier._send_via_webhook([discord.Embed(title="test")])
 
 
 @patch("discord.SyncWebhook")
@@ -152,7 +154,7 @@ def test_send_alerts_empty_list(mock_webhook_class):
 
 @patch("discord.SyncWebhook")
 def test_send_alerts_with_webhook(mock_webhook_class):
-    """Test sending alerts via webhook."""
+    """Test sending alerts via webhook as embeds."""
     mock_webhook = Mock()
     mock_webhook_class.from_url.return_value = mock_webhook
 
@@ -168,6 +170,9 @@ def test_send_alerts_with_webhook(mock_webhook_class):
 
     mock_webhook_class.from_url.assert_called_once_with(webhook_url)
     assert mock_webhook.send.call_count == 2
+    # Ensure embeds were sent
+    for call in mock_webhook.send.call_args_list:
+        assert isinstance(call.kwargs.get("embed"), discord.Embed)
 
 
 def test_send_alerts_no_configuration():
@@ -197,3 +202,51 @@ def test_send_alerts_prefers_webhook(mock_webhook_class):
     # Should use webhook, not bot token
     mock_webhook_class.from_url.assert_called_once_with(webhook_url)
     mock_webhook.send.assert_called_once()
+
+
+def test_create_embed_from_alert_basic():
+    """T001: Create a failing test for embed helper based on contract.
+
+    Asserts that `_create_embed_from_alert(alert)` returns a discord.Embed with
+    title, description, color, and timestamp mapped as specified.
+    """
+    notifier = DiscordNotifier()
+    alert = make_alert(
+        title="大雨警報",
+        category="気象警報",
+        ward="千代田区",
+        severity="Warning",  # Use contract's severity terminology for color mapping
+        link="https://example.com/alert",
+    )
+
+    # Method not yet implemented; this test should fail initially.
+    embed = notifier._create_embed_from_alert(alert)  # type: ignore[attr-defined]
+
+    assert isinstance(embed, discord.Embed)
+    assert embed.title == alert.title
+    # URL should be set when provided
+    assert embed.url == alert.link
+    # Timestamp should match alert.issued_at (aware datetime)
+    assert embed.timestamp == alert.issued_at
+
+    # Color mapping per contract: Warning -> orange
+    assert embed.colour == discord.Color.orange()
+
+    # Description should contain Category and Area lines as per contract format
+    assert "**Category**: 気象警報" in (embed.description or "")
+    assert "**Area**: 千代田区" in (embed.description or "")
+
+
+def test_create_embed_truncates_long_description():
+    """T004: Long description should be truncated and end with ellipsis."""
+    notifier = DiscordNotifier()
+    very_long_ward = "A" * 5000  # exceed 4096 limit when included in description
+    alert = make_alert(ward=very_long_ward, severity="Advisory")
+
+    embed = notifier._create_embed_from_alert(alert)
+
+    assert isinstance(embed, discord.Embed)
+    assert embed.description is not None
+    # Discord embed description hard limit: 4096
+    assert len(embed.description) <= 4096
+    assert embed.description.endswith("...")

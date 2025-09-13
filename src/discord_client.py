@@ -44,7 +44,60 @@ class DiscordNotifier:
             + (f"詳細: {a.link}\n" if a.link else "")
         )
 
-    def _send_via_webhook(self, messages: list[str]) -> None:
+    def _create_embed_from_alert(self, alert: Alert) -> discord.Embed:  # T002
+        """Create a Discord Embed from an Alert per the contract.
+
+        Mapping:
+        - title -> alert.title
+        - url -> alert.link (if any)
+        - timestamp -> alert.issued_at
+        - color -> mapped from alert.severity
+        - description -> "**Category**: {category}\n**Area**: {ward or area}\n\n" (+ optional body)
+        """
+
+        def _severity_to_color(severity: str) -> discord.Color:
+            s = (severity or "").strip().lower()
+            # English mapping (contract)
+            if s == "emergency":
+                return discord.Color.dark_red()
+            if s == "warning":
+                return discord.Color.orange()
+            if s == "advisory":
+                return discord.Color.gold()
+
+            # Common Japanese severities
+            if s in {"特別警報".lower(), "tokubetsu-keihou"}:
+                return discord.Color.dark_red()
+            if s in {"警報".lower(), "keihou", "warning"}:
+                return discord.Color.orange()
+            if s in {"注意報".lower(), "chuuihou", "advisory"}:
+                return discord.Color.gold()
+
+            return discord.Color.light_grey()
+
+        # Build description core per contract
+        area_text = alert.ward or alert.area
+        description_lines = [
+            f"**Category**: {alert.category}",
+            f"**Area**: {area_text}",
+            "",
+        ]
+        description = "\n".join(description_lines)
+        # T004: Truncate description to Discord's embed limit (4096 chars)
+        MAX_DESC = 4096
+        if len(description) > MAX_DESC:
+            description = description[: MAX_DESC - 3] + "..."
+
+        embed = discord.Embed(
+            title=alert.title,
+            description=description,
+            url=alert.link or None,
+            timestamp=alert.issued_at,
+            colour=_severity_to_color(alert.severity),
+        )
+        return embed
+
+    def _send_via_webhook(self, embeds: list[discord.Embed]) -> None:
         from discord import SyncWebhook
 
         if not self.webhook_url:
@@ -52,30 +105,30 @@ class DiscordNotifier:
             raise RuntimeError("DISCORD_WEBHOOK_URL is not set")
 
         webhook = SyncWebhook.from_url(self.webhook_url)
-        logger.info(f"Sending {len(messages)} alerts via webhook.")
-        for i, msg in enumerate(messages):
+        logger.info(f"Sending {len(embeds)} alerts via webhook.")
+        for i, embed in enumerate(embeds):
             try:
-                webhook.send(msg)
-                logger.debug(f"Sent message {i+1}/{len(messages)} successfully.")
+                webhook.send(embed=embed)
+                logger.debug(f"Sent embed {i+1}/{len(embeds)} successfully.")
             except HTTPException as e:
-                logger.exception(f"Failed to send message {i+1} via webhook: {e}")
+                logger.exception(f"Failed to send embed {i+1} via webhook: {e}")
         logger.info("Finished sending alerts via webhook.")
 
     def send_alerts(self, alerts: Iterable[Alert]) -> None:
-        msgs = [self._format_alert(a) for a in alerts]
-        if not msgs:
-            logger.info("No alert messages to send.")
+        embeds = [self._create_embed_from_alert(a) for a in alerts]
+        if not embeds:
+            logger.info("No alert embeds to send.")
             return
 
         if self.dry_run:
             logger.info("[DRY-RUN] Would send the following alerts:")
-            for i, m in enumerate(msgs, 1):
-                logger.info("[DRY-RUN %d/%d]\n%s", i, len(msgs), m)
+            for i, e in enumerate(embeds, 1):
+                logger.info("[DRY-RUN %d/%d] title=%s", i, len(embeds), e.title)
             return
 
         # Prefer webhook
         if self.webhook_url:
-            self._send_via_webhook(msgs)
+            self._send_via_webhook(embeds)
             return
 
         logger.error("Discord not configured for sending alerts.")

@@ -47,6 +47,50 @@ uv run python -m src.main
 
 ボットが起動し、デフォルトで5分ごとに気象庁のフィードからデータを取得し、新しい警報をDiscordに投稿します。
 
+## ローカルでデバッグ（警報が出ていない時）
+
+実際に警報が出ていない時でも、以下の方法でパイプライン全体を検証できます。
+
+1) サンプルXMLでシミュレート
+
+- リポジトリには `samples/tokyo-warning-sample.xml` を用意しています。
+- ネットワークアクセスの代わりにローカルファイルを読み込んで解析します。
+
+PowerShell (Windows):
+
+```powershell
+uv run python -m src.main --once --simulate "samples/tokyo-warning-sample.xml" --dry-run
+```
+
+ポイント:
+- `--once` は1回だけ実行して終了します（スケジューラを起動しません）。
+- `--simulate` は JMA から取得する代わりにローカルの XML を使用します。`file://` 形式にも対応します。
+- `--dry-run` は Discord へ送信せず、送信されるメッセージをログに出力します。
+
+2) 既存のフィードURLを使いつつドライラン
+
+```powershell
+$env:JMA_FEED_URL = "https://www.data.jma.go.jp/developer/xml/feed/extra.xml"
+uv run python -m src.main --once --dry-run
+```
+
+3) 送信の抑止（環境変数）
+
+`--dry-run` の代わりに、環境変数でも指定できます。
+
+```powershell
+$env:DRY_RUN = "true"
+uv run python -m src.main --once --simulate "samples/tokyo-warning-sample.xml"
+```
+
+4) 重複送信の確認
+
+送信済みIDは `data/sent_ids.json` に保存されます。クリーンな状態で試すときはファイルを削除してください。
+
+```powershell
+Remove-Item -Force .\data\sent_ids.json
+```
+
 ## 設定
 
 設定は環境変数で管理されます。

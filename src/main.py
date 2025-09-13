@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 from datetime import datetime, timezone
+import argparse
 from pathlib import Path
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -19,7 +20,7 @@ DATA_DIR = Path(os.getenv("DATA_DIR", "data"))
 SENT_IDS_FILE = DATA_DIR / "sent_ids.json"
 
 
-def pipeline_once(jma_url: str) -> int:
+def pipeline_once(jma_url: str, *, dry_run: bool = False) -> int:
     """
     Fetches, parses, filters, and sends new JMA alerts.
 
@@ -42,7 +43,7 @@ def pipeline_once(jma_url: str) -> int:
         return 0
 
     logger.info(f"Found {len(new_alerts)} new alerts to send.")
-    DiscordNotifier().send_alerts(new_alerts)
+    DiscordNotifier(dry_run=dry_run).send_alerts(new_alerts)
     storage.add_many(a.id for a in new_alerts)
     logger.info("Finished sending and recording new alerts.")
     return len(new_alerts)
@@ -83,5 +84,31 @@ if __name__ == "__main__":
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
-    url = os.getenv("JMA_FEED_URL", "https://www.data.jma.go.jp/developer/xml/feed/extra.xml")
-    run_scheduler(url, interval_minutes=int(os.getenv("FETCH_INTERVAL_MIN", "5")))
+    parser = argparse.ArgumentParser(description="Keihou-bot runner")
+    parser.add_argument("--once", action="store_true", help="Run pipeline once and exit")
+    parser.add_argument(
+        "--simulate",
+        type=str,
+        default=None,
+        help="Use a local XML file (path or file://) instead of fetching from network",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Do not send to Discord; log messages instead",
+    )
+
+    args = parser.parse_args()
+
+    if args.simulate:
+        url = args.simulate
+    else:
+        url = os.getenv(
+            "JMA_FEED_URL", "https://www.data.jma.go.jp/developer/xml/feed/extra.xml"
+        )
+
+    if args.once:
+        count = pipeline_once(url, dry_run=args.dry_run or (os.getenv("DRY_RUN", "").lower() in {"1","true","yes","on"}))
+        logger.info("Run once finished. New alerts sent: %d", count)
+    else:
+        run_scheduler(url, interval_minutes=int(os.getenv("FETCH_INTERVAL_MIN", "5")))

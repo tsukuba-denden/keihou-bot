@@ -4,6 +4,11 @@ import logging
 import os
 from datetime import datetime, timezone
 import argparse
+try:
+    from dotenv import load_dotenv  # type: ignore[reportMissingImports]
+except Exception:  # pragma: no cover - fallback if python-dotenv is unavailable
+    def load_dotenv(*args, **kwargs):  # type: ignore[no-redef]
+        return False
 from pathlib import Path
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -20,7 +25,13 @@ DATA_DIR = Path(os.getenv("DATA_DIR", "data"))
 SENT_IDS_FILE = DATA_DIR / "sent_ids.json"
 
 
-def pipeline_once(jma_url: str, *, dry_run: bool = False) -> int:
+def pipeline_once(
+    jma_url: str,
+    *,
+    dry_run: bool = False,
+    force_send: bool = False,
+    no_store: bool = False,
+) -> int:
     """
     Fetches, parses, filters, and sends new JMA alerts.
 
@@ -37,14 +48,20 @@ def pipeline_once(jma_url: str, *, dry_run: bool = False) -> int:
     logger.info(f"Filtered down to {len(tokyo_alerts)} alerts for Tokyo's 23 wards.")
 
     storage = JsonStorage(SENT_IDS_FILE)
-    new_alerts = [a for a in tokyo_alerts if not storage.has(a.id)]
+    if force_send:
+        new_alerts = list(tokyo_alerts)
+    else:
+        new_alerts = [a for a in tokyo_alerts if not storage.has(a.id)]
     if not new_alerts:
         logger.info("No new alerts to send.")
         return 0
 
     logger.info(f"Found {len(new_alerts)} new alerts to send.")
     DiscordNotifier(dry_run=dry_run).send_alerts(new_alerts)
-    storage.add_many(a.id for a in new_alerts)
+    if not no_store:
+        storage.add_many(a.id for a in new_alerts)
+    else:
+        logger.info("No-store mode enabled; not recording sent IDs.")
     logger.info("Finished sending and recording new alerts.")
     return len(new_alerts)
 
@@ -79,6 +96,9 @@ def run_scheduler(jma_url: str, interval_minutes: int = 5) -> None:
 
 
 if __name__ == "__main__":
+    # Load .env (do not override existing env variables)
+    load_dotenv(override=False)
+
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -97,6 +117,16 @@ if __name__ == "__main__":
         action="store_true",
         help="Do not send to Discord; log messages instead",
     )
+    parser.add_argument(
+        "--force-send",
+        action="store_true",
+        help="Send alerts even if they were already recorded (bypass duplicate check)",
+    )
+    parser.add_argument(
+        "--no-store",
+        action="store_true",
+        help="Do not record sent alert IDs to storage",
+    )
 
     args = parser.parse_args()
 
@@ -108,7 +138,12 @@ if __name__ == "__main__":
         )
 
     if args.once:
-        count = pipeline_once(url, dry_run=args.dry_run or (os.getenv("DRY_RUN", "").lower() in {"1","true","yes","on"}))
+        count = pipeline_once(
+            url,
+            dry_run=args.dry_run or (os.getenv("DRY_RUN", "").lower() in {"1","true","yes","on"}),
+            force_send=args.force_send,
+            no_store=args.no_store,
+        )
         logger.info("Run once finished. New alerts sent: %d", count)
     else:
         run_scheduler(url, interval_minutes=int(os.getenv("FETCH_INTERVAL_MIN", "5")))

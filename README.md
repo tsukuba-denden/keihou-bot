@@ -53,8 +53,6 @@ uv run python -m src.main
 
 1) サンプルXMLでシミュレート
 
-- リポジトリには `samples/tokyo-warning-sample.xml` を用意しています。
-- ネットワークアクセスの代わりにローカルファイルを読み込んで解析します。
 
 PowerShell (Windows):
 
@@ -63,9 +61,6 @@ uv run python -m src.main --once --simulate "samples/tokyo-warning-sample.xml" -
 ```
 
 ポイント:
-- `--once` は1回だけ実行して終了します（スケジューラを起動しません）。
-- `--simulate` は JMA から取得する代わりにローカルの XML を使用します。`file://` 形式にも対応します。
-- `--dry-run` は Discord へ送信せず、送信されるメッセージをログに出力します。
 
 2) 既存のフィードURLを使いつつドライラン
 
@@ -91,9 +86,21 @@ uv run python -m src.main --once --simulate "samples/tokyo-warning-sample.xml"
 Remove-Item -Force .\data\sent_ids.json
 ```
 
+もしくは、保存済みでも送る/保存しないオプションが使えます。
+
+
+```powershell
+uv run python -m src.main --once --simulate "samples/tokyo-warning-sample.xml" --force-send
+```
+
+
+```powershell
+uv run python -m src.main --once --simulate "samples/tokyo-warning-sample.xml" --no-store
+```
+
 ## 設定
 
-設定は環境変数で管理されます。
+設定は環境変数で管理されます（.env 自動読み込み対応）。
 
 | 変数名                   | 説明                                                                                                    | デフォルト値                                                |
 | ------------------------ | ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
@@ -102,12 +109,14 @@ Remove-Item -Force .\data\sent_ids.json
 | `FETCH_INTERVAL_MIN`     | ボットが新しい警報をチェックする間隔（分）。                                                            | `5`                                                         |
 | `DATA_DIR`               | 送信済み警報IDのリストなど、永続的なデータを保存するディレクトリ。                                      | `data/`                                                     |
 
-ルートディレクトリに`.env`ファイルを作成して、これらの変数を管理します:
+ルートディレクトリに`.env`ファイルを置くと、起動時に自動で読み込まれます（既にシェルで設定済みの環境変数があれば、そちらが優先されます）。
 
 ```
 DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/your/webhook_url"
 FETCH_INTERVAL_MIN=10
 ```
+
+PowerShell セッションで一時的に上書きしたい場合は、従来どおり `$env:VAR=value` で設定できます。
 
 ## ライセンス
 

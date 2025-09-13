@@ -26,13 +26,13 @@
 - [x] T014 [P] Unit test for JMA XML parsing in `tests/unit/test_jma_parser.py`.
 - [x] T015 [P] Unit test for filtering logic in `tests/unit/test_filter.py`.
 - [ ] T016 [P] Unit test for Discord notification service in `tests/unit/test_discord_client.py`.
-- [ ] T017 Integration test for the main application loop in `tests/integration/test_main.py`.
+- [x] T017 Integration test for the main application loop in `tests/integration/test_main.py`.
 
 ## Phase 3.5: Polish
-- [ ] T018 [P] Add logging to all modules.
-- [ ] T019 [P] Add error handling for network issues and parsing errors.
-- [ ] T020 [P] Create a `README.md` with setup and usage instructions.
-- [ ] T021 [P] Dockerize the application by creating a `Dockerfile`.
+- [x] T018 [P] Add logging to all modules.
+- [x] T019 [P] Add error handling for network issues and parsing errors.
+- [x] T020 [P] Create a `README.md` with setup and usage instructions.
+- [x] T021 [P] Dockerize the application by creating a `Dockerfile`.
 
 ## Dependencies
 - T001, T002, T003 can be done in parallel.

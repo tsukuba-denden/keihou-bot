@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
 import os
 from typing import Iterable, Optional
 
 import discord
 
 from .models import Alert
+
+logger = logging.getLogger(__name__)
 
 
 class DiscordNotifier:
@@ -26,6 +29,9 @@ class DiscordNotifier:
         self.token = token or os.getenv("DISCORD_BOT_TOKEN")
         self.channel_id = channel_id or int(os.getenv("DISCORD_CHANNEL_ID", "0"))
 
+        if not self.webhook_url and not (self.token and self.channel_id):
+            logger.warning("Discord notifier is not configured. Set DISCORD_WEBHOOK_URL.")
+
     def _format_alert(self, a: Alert) -> str:
         return (
             f"【{a.category} / {a.severity}】{a.title}\n"
@@ -37,14 +43,23 @@ class DiscordNotifier:
         from discord import SyncWebhook
 
         if not self.webhook_url:
+            logger.error("Webhook URL is not set, cannot send alerts.")
             raise RuntimeError("DISCORD_WEBHOOK_URL is not set")
+
         webhook = SyncWebhook.from_url(self.webhook_url)
-        for msg in messages:
-            webhook.send(msg)
+        logger.info(f"Sending {len(messages)} alerts via webhook.")
+        for i, msg in enumerate(messages):
+            try:
+                webhook.send(msg)
+                logger.debug(f"Sent message {i+1}/{len(messages)} successfully.")
+            except discord.errors.HTTPException as e:
+                logger.exception(f"Failed to send message {i+1} via webhook: {e}")
+        logger.info("Finished sending alerts via webhook.")
 
     def send_alerts(self, alerts: Iterable[Alert]) -> None:
         msgs = [self._format_alert(a) for a in alerts]
         if not msgs:
+            logger.info("No alert messages to send.")
             return
 
         # Prefer webhook
@@ -52,6 +67,5 @@ class DiscordNotifier:
             self._send_via_webhook(msgs)
             return
 
-        # As a minimal fallback, require webhook.
-        # Bot-token based sending can be added if needed later.
+        logger.error("Discord not configured for sending alerts.")
         raise RuntimeError("Discord not configured. Set DISCORD_WEBHOOK_URL for sending.")

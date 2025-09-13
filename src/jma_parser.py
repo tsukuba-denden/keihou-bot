@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from hashlib import sha256
-from typing import Iterable, List
+from typing import List
+
 from lxml import etree
 
 from .models import Alert
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -30,14 +34,17 @@ def _text(node, xpath: str) -> str | None:
 
 
 def parse_jma_xml(xml_bytes: bytes) -> List[Alert]:
-    """Parse a simplified subset of JMA XML and normalize to Alert objects.
+    """Parse a simplified subset of JMA XML and normalize to Alert objects."""
+    if not xml_bytes:
+        logger.warning("XML content is empty, cannot parse.")
+        return []
 
-    Note: JMA XML has multiple schemas; this function currently handles typical weather warnings
-    and advisories. Extend as needed when integrating real feeds.
-    """
-    root = etree.fromstring(xml_bytes)
+    try:
+        root = etree.fromstring(xml_bytes)
+    except etree.XMLSyntaxError as e:
+        logger.exception(f"Failed to parse JMA XML: {e}")
+        return []
 
-    # Very simplified extraction – replace with schema-aware parsing when available
     title = _text(root, "//Head/Title/text()") or _text(root, "//Report/Head/Headline/Text/text()")
     issued_str = _text(root, "//Head/ReportDateTime/text()") or _text(
         root, "//Report/Head/ReportDateTime/text()"
@@ -49,14 +56,17 @@ def parse_jma_xml(xml_bytes: bytes) -> List[Alert]:
                 timezone.utc
             )
         except (ValueError, TypeError):
+            logger.warning(f"Could not parse datetime '{issued_str}', using current time.")
             issued_at = datetime.now(timezone.utc)
     else:
+        logger.warning("No ReportDateTime found in XML, using current time.")
         issued_at = datetime.now(timezone.utc)
 
     alerts: list[Alert] = []
+    item_nodes = root.xpath("//Body//Warning//Item | //Body//Area//Item | //Report/Body//Item")
+    logger.info(f"Found {len(item_nodes)} item nodes in JMA XML.")
 
-    # Iterate over presumed area entries
-    for area_node in root.xpath("//Body//Warning//Item | //Body//Area//Item | //Report/Body//Item"):
+    for area_node in item_nodes:
         area_name = (
             _text(area_node, "./Area/Name/text()") or _text(area_node, "./Area/text()") or "Unknown"
         )
@@ -102,8 +112,8 @@ def parse_jma_xml(xml_bytes: bytes) -> List[Alert]:
             )
         )
 
-    # Fallback: if no items, produce a single area-less alert
     if not alerts and title:
+        logger.warning(f"No alert items found, creating a fallback alert for title: '{title}'")
         alert_id = sha256((title + issued_at.isoformat()).encode("utf-8")).hexdigest()[:16]
         alerts.append(
             Alert(
@@ -120,4 +130,5 @@ def parse_jma_xml(xml_bytes: bytes) -> List[Alert]:
             )
         )
 
+    logger.info(f"Successfully parsed {len(alerts)} alerts from XML.")
     return alerts

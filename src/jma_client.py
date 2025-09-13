@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-from typing import Optional
+import logging
 
 import requests
+
+logger = logging.getLogger(__name__)
 
 
 class JmaClient:
@@ -16,6 +18,12 @@ class JmaClient:
 
     def fetch(self, path: str = "") -> bytes:
         url = f"{self.base_url}/{path.lstrip('/')}" if path else self.base_url
-        resp = requests.get(url, timeout=15)
-        resp.raise_for_status()
-        return resp.content
+        logger.info(f"Fetching JMA feed from: {url}")
+        try:
+            resp = requests.get(url, timeout=15)
+            resp.raise_for_status()
+            logger.info(f"Successfully fetched data from {url} (status: {resp.status_code})")
+            return resp.content
+        except requests.exceptions.RequestException as e:
+            logger.exception(f"Failed to fetch data from {url}: {e}")
+            raise  # Re-raise the exception after logging

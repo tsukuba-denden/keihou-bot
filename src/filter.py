@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from typing import Iterable, List
+import logging
+from typing import Iterable
 
 from .models import Alert
 
+logger = logging.getLogger(__name__)
 
 TOKYO_23_WARDS = {
     "千代田区",
@@ -34,10 +36,12 @@ TOKYO_23_WARDS = {
 
 def pick_23_wards(alerts: Iterable[Alert]) -> list[Alert]:
     """Return only alerts that match one of Tokyo's 23 wards by name in area."""
+    logger.debug(f"Filtering {len(list(alerts))} alerts for Tokyo's 23 wards.")
     result: list[Alert] = []
     for a in alerts:
         ward = next((w for w in TOKYO_23_WARDS if w in a.area or (a.ward and w in a.ward)), None)
         if ward:
+            logger.debug(f"Found match for ward '{ward}' in alert area '{a.area}'.")
             result.append(
                 Alert(
                     id=a.id,
@@ -52,4 +56,8 @@ def pick_23_wards(alerts: Iterable[Alert]) -> list[Alert]:
                     raw=a.raw,
                 )
             )
+        else:
+            logger.debug(f"No match for 23 wards in alert area '{a.area}'. Skipping.")
+
+    logger.info(f"Filtered {len(list(alerts))} alerts down to {len(result)} for Tokyo's 23 wards.")
     return result

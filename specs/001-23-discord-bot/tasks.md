@@ -25,8 +25,13 @@
 - [x] T013 [P] Unit test for data storage in `tests/unit/test_storage.py`.
 - [x] T014 [P] Unit test for JMA XML parsing in `tests/unit/test_jma_parser.py`.
 - [x] T015 [P] Unit test for filtering logic in `tests/unit/test_filter.py`.
+<<<<<<< HEAD
 - [ ] T016 [P] Unit test for Discord notification service in `tests/unit/test_discord_client.py`.
 - [x] T017 Integration test for the main application loop in `tests/integration/test_main.py`.
+=======
+- [x] T016 [P] Unit test for Discord notification service in `tests/unit/test_discord_client.py`.
+- [ ] T017 Integration test for the main application loop in `tests/integration/test_main.py`.
+>>>>>>> 8c939417b452f96a99b3709e3e4fa2bb5094e7a7
 
 ## Phase 3.5: Polish
 - [x] T018 [P] Add logging to all modules.

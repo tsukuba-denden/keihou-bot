@@ -37,12 +37,13 @@
 
 ## 使い方
 
-ボットを実行するには、`main.py`スクリプトを実行します:
+ボットを実行するには、`uv run` を使用して `main.py` スクリプトを実行します。
 
 ```bash
-source .venv/bin/activate  # Windowsの場合は `.venv\Scripts\activate` を使用します
-python -m src.main
+uv run python -m src.main
 ```
+
+このコマンドは、`uv` が管理する仮想環境内で `python -m src.main` を実行するため、仮想環境を事前に有効化する必要がありません。
 
 ボットが起動し、デフォルトで5分ごとに気象庁のフィードからデータを取得し、新しい警報をDiscordに投稿します。
 

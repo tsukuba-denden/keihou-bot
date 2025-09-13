@@ -223,7 +223,7 @@ def test_create_embed_from_alert_basic():
     embed = notifier._create_embed_from_alert(alert)  # type: ignore[attr-defined]
 
     assert isinstance(embed, discord.Embed)
-    assert embed.title == alert.title
+    assert embed.title == alert.category
     # URL should be set when provided
     assert embed.url == alert.link
     # Timestamp should match alert.issued_at (aware datetime)
@@ -232,8 +232,7 @@ def test_create_embed_from_alert_basic():
     # Color mapping per contract: Warning -> orange
     assert embed.colour == discord.Color.orange()
 
-    # Description should contain Category and Area lines as per contract format
-    assert "**Category**: 気象警報" in (embed.description or "")
+    # Description should contain Area line
     assert "**Area**: 千代田区" in (embed.description or "")
 
 

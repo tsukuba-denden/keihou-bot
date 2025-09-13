@@ -11,8 +11,8 @@ The bot will send a single `discord.Embed` object with the following structure, 
 
 | Embed Property | Value Source (`Alert` model) | Notes                                                                                             |
 |----------------|------------------------------|---------------------------------------------------------------------------------------------------|
-| `title`        | `alert.title`                | The main title of the alert.                                                                      |
-| `description`  | `(Formatted String)`         | A formatted string containing key information. See details below.                                 |
+| `title`        | `alert.category`             | Use the alert category as the embed title for concise, scannable context.                         |
+| `description`  | `(Formatted String)`         | A formatted string containing key information (Area only; Category omitted as it's the title).    |
 | `color`        | `alert.severity`             | The embed color will change based on the severity level to provide a quick visual indicator.      |
 | `timestamp`    | `alert.issued_at`            | The issue time of the alert, displayed in the embed's footer.                                     |
 | `url`          | `alert.link`                 | If a source link is available, it will be attached to the embed's title.                          |
@@ -22,7 +22,6 @@ The bot will send a single `discord.Embed` object with the following structure, 
 The main `description` of the embed will be a multi-line string constructed as follows:
 
 ```
-**Category**: {alert.category}
 **Area**: {alert.ward or alert.area}
 
 {A formatted and potentially truncated version of the main alert body/details.}

@@ -75,10 +75,9 @@ class DiscordNotifier:
 
             return discord.Color.light_grey()
 
-        # Build description core per contract
+        # Build description core (category omitted as it's now the title)
         area_text = alert.ward or alert.area
         description_lines = [
-            f"**Category**: {alert.category}",
             f"**Area**: {area_text}",
             "",
         ]
@@ -89,7 +88,7 @@ class DiscordNotifier:
             description = description[: MAX_DESC - 3] + "..."
 
         embed = discord.Embed(
-            title=alert.title,
+            title=alert.category,
             description=description,
             url=alert.link or None,
             timestamp=alert.issued_at,

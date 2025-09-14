@@ -65,3 +65,13 @@ def test_advisory_only_is_ignored():
     now = datetime(2024, 1, 2, 21, 0, 0, tzinfo=timezone.utc)  # JST=06:00
     g = decide_school_guidance([make_alert("強風注意報", severity="注意報")], now=now)
     assert g.status == "平常授業"
+
+
+def test_10am_clear_saturday_no_class():
+    # 2024-01-06 Sat 01:10Z => JST 10:10 Sat (2024-01-06 土)
+    now = datetime(2024, 1, 6, 1, 10, 0, tzinfo=timezone.utc)
+    g = decide_school_guidance([], now=now)
+    assert g.decision_point == "10"
+    # 月・土は午後授業がないため、自宅学習（授業なし）
+    assert g.status == "自宅学習"
+    assert g.attend_time is None

@@ -53,6 +53,7 @@ def pick_23_wards(alerts: Iterable[Alert]) -> list[Alert]:
                     issued_at=a.issued_at,
                     expires_at=a.expires_at,
                     link=a.link,
+                        status=a.status,
                     raw=a.raw,
                 )
             )

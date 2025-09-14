@@ -19,6 +19,7 @@ class Alert:
         issued_at: Datetime when alert was issued (UTC)
         expires_at: Optional expiry time (UTC)
         link: Source link if any
+        status: Alert lifecycle status ("active" or "cancelled")
         raw: Optional raw payload for debugging
     """
 
@@ -31,6 +32,7 @@ class Alert:
     issued_at: datetime
     expires_at: Optional[datetime]
     link: Optional[str]
+    status: str = "active"
     raw: Optional[Any] = None
 
     def to_dict(self) -> dict[str, Any]:
@@ -44,4 +46,5 @@ class Alert:
             "issued_at": self.issued_at.isoformat(),
             "expires_at": self.expires_at.isoformat() if self.expires_at else None,
             "link": self.link,
+            "status": self.status,
         }

@@ -11,6 +11,7 @@
 - 東京23区に関連する警報のみをフィルタリングします。
 - 整形された警報メッセージをDiscordチャンネルにWebhook経由で送信します。
 - 送信済みメッセージのIDを保存することで、重複した警報の送信を防ぎます。
+- 解除電文（取消/解除）を検知し、解除用のDiscord埋め込みメッセージを送信します。
 
 ## 要件
 
@@ -62,6 +63,9 @@ uv run python -m src.main --once --simulate "samples/tokyo-warning-sample.xml" -
 
 ポイント:
 
+- 解除シナリオの簡易検証は、`--simulate` を2回変えて実行（1回目: 発表、2回目: 解除（Head/InfoType=取消 または Kind/Status=解除 を含むXML））。
+- `--force-send` を付けると、保存済みでも送信ロジックを通すことができます（テスト・検証用）。
+
 2) 既存のフィードURLを使いつつドライラン
 
 ```powershell
@@ -97,6 +101,12 @@ uv run python -m src.main --once --simulate "samples/tokyo-warning-sample.xml" -
 ```powershell
 uv run python -m src.main --once --simulate "samples/tokyo-warning-sample.xml" --no-store
 ```
+
+### ストレージ仕様の更新（互換）
+
+`data/sent_ids.json` は、これまで「送信済みIDの配列」でしたが、解除状態の管理のため「`{"<id>": "active|cancelled"}` のマップ」に拡張されました。既存ファイルは自動で後方互換的に読み込まれます（配列はすべて `active` とみなされます）。
+
+解除を受け取った場合は、既存IDの状態が `cancelled` に更新され、解除専用の埋め込み（タイトル「【解除】気象警報・注意報」）が送信されます。
 
 ## 設定
 

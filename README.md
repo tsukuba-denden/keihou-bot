@@ -118,12 +118,17 @@ uv run python -m src.main --once --simulate "samples/tokyo-warning-sample.xml" -
 | `JMA_FEED_URL`           | 監視対象の気象庁XMLフィードのURL。                                                                      | `https://www.data.jma.go.jp/developer/xml/feed/extra.xml`   |
 | `FETCH_INTERVAL_MIN`     | ボットが新しい警報をチェックする間隔（分）。                                                            | `5`                                                         |
 | `DATA_DIR`               | 送信済み警報IDのリストなど、永続的なデータを保存するディレクトリ。                                      | `data/`                                                     |
+| `ROLE_ID`                | 学校ガイダンスの「登校時間が通常と異なる日」に、サーバーの特定ロールへメンションするためのロールID。     | `None`（未設定ならメンションしません）                      |
+| `SCHOOL_NORMAL_TIME`     | 平常授業時の登校時刻（ロールメンションの基準値）。例: `08:10`                                           | `08:10`                                                     |
 
 ルートディレクトリに`.env`ファイルを置くと、起動時に自動で読み込まれます（既にシェルで設定済みの環境変数があれば、そちらが優先されます）。
 
 ```
 DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/your/webhook_url"
 FETCH_INTERVAL_MIN=10
+# 学校ガイダンスのメンション設定（任意）
+ROLE_ID=123456789012345678
+SCHOOL_NORMAL_TIME=08:10
 ```
 
 PowerShell セッションで一時的に上書きしたい場合は、従来どおり `$env:VAR=value` で設定できます。

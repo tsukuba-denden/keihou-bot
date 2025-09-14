@@ -69,3 +69,38 @@ class SchoolGuidance:
     status: str
     attend_time: Optional[str] = None
     notes: Optional[list[str]] = None
+
+
+@dataclass(frozen=True, slots=True)
+class RoleMentionSetting:
+    """Configuration for Discord role mention when school guidance time differs.
+
+    Fields:
+      - role_id: Discord role ID (server-level). If None or invalid, mention is disabled.
+      - enabled: Master flag to allow mention behavior.
+      - suppress_policy: Placeholder for future suppression strategy (e.g., per-day-once).
+      - window_minutes: Optional window for suppression if applied.
+    """
+
+    role_id: Optional[int]
+    enabled: bool = True
+    suppress_policy: str = "per-day-once"
+    window_minutes: int = 0
+
+    @staticmethod
+    def _parse_int(value: str | None) -> Optional[int]:
+        if not value:
+            return None
+        try:
+            v = int(str(value))
+            return v if v > 0 else None
+        except Exception:
+            return None
+
+    @classmethod
+    def from_env(cls) -> "RoleMentionSetting":
+        import os
+
+        rid = cls._parse_int(os.getenv("ROLE_ID"))
+        enabled = (os.getenv("ROLE_MENTION_ENABLED", "true").lower() in {"1", "true", "yes", "on"})
+        return cls(role_id=rid, enabled=enabled)

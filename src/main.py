@@ -95,7 +95,11 @@ def pipeline_once(
     try:
         guidance = decide_school_guidance(tokyo_alerts)
         has_target = any(getattr(a, "status", "active") != "cancelled" for a in tokyo_alerts)
-        should = guidance_controller.should_send(guidance=guidance, has_target=has_target, now=datetime.now(timezone.utc))
+        should = guidance_controller.should_send(
+            guidance=guidance, has_target=has_target, now=datetime.now(timezone.utc)
+        )
+        if force_send:
+            should = True
         if should:
             notifier.send_school_guidance(guidance)
     except Exception as e:  # pylint: disable=broad-except-clause

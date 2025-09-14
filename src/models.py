@@ -48,3 +48,59 @@ class Alert:
             "link": self.link,
             "status": self.status,
         }
+
+
+@dataclass(frozen=True, slots=True)
+class SchoolGuidance:
+    """Decision object for school attendance guidance based on warning policy.
+
+    Attributes:
+        date: Local date string (YYYY-MM-DD, Asia/Tokyo)
+        decision_point: "06" | "08" | "10" | "pre6" (表示用)
+        weekday: 0=Mon .. 6=Sun (Japan local)
+        status: 「平常授業」「自宅待機」「自宅学習」「第3時限から授業」「午後から授業」など
+        attend_time: 具体的な登校目安時刻（必要時）
+        notes: 追加の注意書きリスト
+    """
+
+    date: str
+    decision_point: str
+    weekday: int
+    status: str
+    attend_time: Optional[str] = None
+    notes: Optional[list[str]] = None
+
+
+@dataclass(frozen=True, slots=True)
+class RoleMentionSetting:
+    """Configuration for Discord role mention when school guidance time differs.
+
+    Fields:
+      - role_id: Discord role ID (server-level). If None or invalid, mention is disabled.
+      - enabled: Master flag to allow mention behavior.
+      - suppress_policy: Placeholder for future suppression strategy (e.g., per-day-once).
+      - window_minutes: Optional window for suppression if applied.
+    """
+
+    role_id: Optional[int]
+    enabled: bool = True
+    suppress_policy: str = "per-day-once"
+    window_minutes: int = 0
+
+    @staticmethod
+    def _parse_int(value: str | None) -> Optional[int]:
+        if not value:
+            return None
+        try:
+            v = int(str(value))
+            return v if v > 0 else None
+        except Exception:
+            return None
+
+    @classmethod
+    def from_env(cls) -> "RoleMentionSetting":
+        import os
+
+        rid = cls._parse_int(os.getenv("ROLE_ID"))
+        enabled = (os.getenv("ROLE_MENTION_ENABLED", "true").lower() in {"1", "true", "yes", "on"})
+        return cls(role_id=rid, enabled=enabled)

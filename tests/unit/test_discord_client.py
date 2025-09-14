@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from src.discord_client import DiscordNotifier
-from src.models import Alert
+from src.models import Alert, SchoolGuidance
 
 
 def make_alert(**kwargs) -> Alert:
@@ -25,7 +25,7 @@ def make_alert(**kwargs) -> Alert:
         "link": None,
     }
     defaults.update(kwargs)
-    return Alert(**defaults)
+    return Alert(**defaults)  # type: ignore[call-arg]
 
 
 def test_init_with_webhook_url():
@@ -249,3 +249,63 @@ def test_create_embed_truncates_long_description():
     # Discord embed description hard limit: 4096
     assert len(embed.description) <= 4096
     assert embed.description.endswith("...")
+
+
+def test_create_guidance_embed_result_line_least_until_10():
+    """8時判定で自宅学習のときは、結果行が『少なくとも10時までは自宅学習』になる。"""
+    notifier = DiscordNotifier()
+    g = SchoolGuidance(
+        date="2024-01-01",
+        decision_point="08",
+        weekday=0,  # Monday
+        status="自宅学習",
+        attend_time=None,
+        notes=None,
+    )
+    embed = notifier._create_guidance_embed(g)
+    assert isinstance(embed, discord.Embed)
+    assert embed.description is not None
+    assert "結果: 少なくとも10時までは自宅学習" in embed.description
+
+
+def test_create_guidance_embed_result_line_other_cases_plain():
+    """8時判定以外、または自宅学習以外の場合は従来通りの結果表示。"""
+    notifier = DiscordNotifier()
+    # case1: 10時判定で自宅学習
+    g1 = SchoolGuidance(
+        date="2024-01-01",
+        decision_point="10",
+        weekday=2,
+        status="自宅学習",
+        attend_time=None,
+        notes=None,
+    )
+    e1 = notifier._create_guidance_embed(g1)
+    assert "結果: 自宅学習" in (e1.description or "")
+
+    # case2: 8時判定で自宅待機
+    g2 = SchoolGuidance(
+        date="2024-01-01",
+        decision_point="08",
+        weekday=2,
+        status="自宅待機",
+        attend_time=None,
+        notes=None,
+    )
+    e2 = notifier._create_guidance_embed(g2)
+    assert "結果: 自宅待機" in (e2.description or "")
+
+
+def test_create_guidance_embed_result_line_least_until_8_for_06_wait():
+    """6時判定で自宅待機のときは、結果行が『少なくとも8時までは自宅待機』になる。"""
+    notifier = DiscordNotifier()
+    g = SchoolGuidance(
+        date="2024-01-01",
+        decision_point="06",
+        weekday=2,
+        status="自宅待機",
+        attend_time=None,
+        notes=None,
+    )
+    e = notifier._create_guidance_embed(g)
+    assert "結果: 少なくとも8時までは自宅待機" in (e.description or "")

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from src.models import Alert
+from src.models import Alert, RoleMentionSetting
 
 
 def test_alert_to_dict_roundtrip():
@@ -23,3 +23,18 @@ def test_alert_to_dict_roundtrip():
     assert d["area"] == "東京都千代田区"
     assert d["ward"] == "千代田区"
     assert d["issued_at"] == now.isoformat()
+
+
+def test_role_mention_setting_from_env_parses_role_id(monkeypatch):
+    monkeypatch.setenv("ROLE_ID", "123456789012345678")
+    s = RoleMentionSetting.from_env()
+    assert s.role_id == 123456789012345678
+    assert s.enabled is True
+
+
+def test_role_mention_setting_invalid_role_id(monkeypatch):
+    monkeypatch.delenv("ROLE_ID", raising=False)
+    monkeypatch.setenv("ROLE_MENTION_ENABLED", "true")
+    s = RoleMentionSetting.from_env()
+    assert s.role_id is None
+    assert s.enabled is True

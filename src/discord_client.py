@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 from typing import Iterable, Optional
 
 import discord
+# Expose alias for tests that patch src.discord_client.SyncWebhook, and keep original for comparison
+SyncWebhook = getattr(discord, "SyncWebhook", None)  # type: ignore[assignment]
+_ORIGINAL_DISCORD_SYNC_WEBHOOK = SyncWebhook
 from discord.errors import HTTPException
 
-from .models import Alert
+from .models import Alert, SchoolGuidance, RoleMentionSetting
 
 logger = logging.getLogger(__name__)
 
@@ -118,14 +122,26 @@ class DiscordNotifier:
         embed.set_footer(text="気象庁 | JMA")
         return embed
 
-    def _send_via_webhook(self, embeds: list[discord.Embed]) -> None:
-        from discord import SyncWebhook
+    def _get_sync_webhook_cls(self):  # type: ignore[no-untyped-def]
+        """Resolve SyncWebhook class that works with tests patching either
+        src.discord_client.SyncWebhook or discord.SyncWebhook.
+        """
+        # Evaluate both module-level and discord module class.
+        mod_attr = getattr(sys.modules[__name__], "SyncWebhook", None)
+        disc_attr = getattr(discord, "SyncWebhook")
+        # Prefer module-level only if it has been overridden from the original
+        if mod_attr is not None and mod_attr is not _ORIGINAL_DISCORD_SYNC_WEBHOOK:
+            return mod_attr
+        # Otherwise use current discord.SyncWebhook (unit tests patch this)
+        return disc_attr
 
+    def _send_via_webhook(self, embeds: list[discord.Embed]) -> None:
         if not self.webhook_url:
             logger.error("Webhook URL is not set, cannot send alerts.")
             raise RuntimeError("DISCORD_WEBHOOK_URL is not set")
 
-        webhook = SyncWebhook.from_url(self.webhook_url)
+        wh_cls = self._get_sync_webhook_cls()
+        webhook = wh_cls.from_url(self.webhook_url)
         logger.info(f"Sending {len(embeds)} alerts via webhook.")
         for i, embed in enumerate(embeds):
             try:
@@ -174,4 +190,80 @@ class DiscordNotifier:
             return
 
         logger.error("Discord not configured for sending cancellation alerts.")
+        raise RuntimeError("Discord not configured. Set DISCORD_WEBHOOK_URL for sending.")
+
+    # --- School guidance ---
+    def _create_guidance_embed(self, g: SchoolGuidance) -> discord.Embed:
+        title = "登校ガイダンス"
+        dp = {"pre6": "6時判定前", "06": "6時判定", "08": "8時判定", "10": "10時判定"}.get(
+            g.decision_point, g.decision_point
+        )
+        # 表示専用の結果行を整形（例: 8時判定で自宅学習 → 「少なくとも10時までは自宅学習」）
+        def _format_result_line(g: SchoolGuidance) -> str:
+            # 6時判定時は8時までに再判定があるため、待機系は「少なくとも8時まで」を明示
+            if g.decision_point == "06" and g.status == "自宅待機":
+                return "結果: 少なくとも8時までは自宅待機"
+            # 8時判定の段階で自宅学習が確定しているのは月・土のみ（ポリシー）。
+            # この場合、10時の最終判定までは継続のため、「少なくとも10時までは自宅学習」と表現する。
+            if g.status == "自宅学習" and g.decision_point == "08":
+                return "結果: 少なくとも10時までは自宅学習"
+            # それ以外は従来通りのステータスをそのまま表示
+            return f"結果: {g.status}"
+
+        desc_lines = [
+            f"日付: {g.date}",
+            f"判定: {dp}",
+            _format_result_line(g),
+        ]
+        if g.attend_time:
+            desc_lines.append(f"登校目安: {g.attend_time}")
+        if g.notes:
+            desc_lines.extend(["", *g.notes])
+
+        embed = discord.Embed(
+            title=title,
+            description="\n".join(desc_lines),
+            colour=discord.Color.blue(),
+        )
+        return embed
+
+    def send_school_guidance(self, guidance: SchoolGuidance) -> None:
+        embed = self._create_guidance_embed(guidance)
+        # Determine if role mention should be prefixed to content
+        content_prefix = ""
+        try:
+            baseline = os.getenv("SCHOOL_NORMAL_TIME", "08:10")
+            today_time = guidance.attend_time or ""
+            role_setting = RoleMentionSetting.from_env()
+            should_mention = (
+                role_setting.enabled
+                and bool(role_setting.role_id)
+                and bool(today_time)
+                and today_time != baseline
+            )
+            if should_mention:
+                content_prefix = f"<@&{role_setting.role_id}> "
+        except Exception as e:  # safe guard
+            logger.warning("Failed to evaluate role mention condition: %s", e)
+
+        if self.dry_run:
+            logger.info("[DRY-RUN] Would send school guidance: %s", guidance.status)
+            if content_prefix:
+                logger.info("[DRY-RUN] Would mention role with content prefix: %s", content_prefix.strip())
+            return
+
+        if self.webhook_url:
+            # Send via webhook with optional content prefix
+            wh_cls = self._get_sync_webhook_cls()
+            webhook = wh_cls.from_url(self.webhook_url)
+            try:
+                if content_prefix:
+                    webhook.send(content=content_prefix, embed=embed)
+                else:
+                    webhook.send(embed=embed)
+            except HTTPException as e:
+                logger.exception("Failed to send school guidance via webhook: %s", e)
+            return
+
+        logger.error("Discord not configured for sending school guidance.")
         raise RuntimeError("Discord not configured. Set DISCORD_WEBHOOK_URL for sending.")

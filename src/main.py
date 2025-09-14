@@ -19,6 +19,7 @@ from .jma_client import JmaClient
 from .jma_parser import parse_jma_xml
 from .storage import JsonStorage
 from .school_policy import decide_school_guidance
+from .guidance_state import GuidanceController
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +54,7 @@ def pipeline_once(
     actives = [a for a in tokyo_alerts if getattr(a, "status", "active") != "cancelled"]
 
     storage = JsonStorage(SENT_IDS_FILE)
+    guidance_controller = GuidanceController(DATA_DIR / "guidance_state.json")
 
     # Determine which to send
     if force_send:
@@ -87,12 +89,17 @@ def pipeline_once(
                 else:
                     storage.add(a.id, status="cancelled")
 
-    # 学校ガイダンスを送信（常に最新の判定を1通）。重複抑止は将来検討。
+    # 学校ガイダンス送信ポリシー：
+    # - 6/8/10の各判定直後は必ず1回配信
+    # - 6:00〜9:59の間、対象警報の有無が変化したら更新配信
     try:
         guidance = decide_school_guidance(tokyo_alerts)
-        notifier.send_school_guidance(guidance)  # type: ignore[attr-defined]
+        has_target = any(getattr(a, "status", "active") != "cancelled" for a in tokyo_alerts)
+        should = guidance_controller.should_send(guidance=guidance, has_target=has_target, now=datetime.now(timezone.utc))
+        if should:
+            notifier.send_school_guidance(guidance)
     except Exception as e:  # pylint: disable=broad-except-clause
-        logger.exception("Failed to send school guidance: %s", e)
+        logger.exception("Failed to process/send school guidance: %s", e)
 
     if total == 0:
         logger.info("No new alerts to send.")

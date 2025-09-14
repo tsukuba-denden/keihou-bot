@@ -18,6 +18,7 @@ from .filter import pick_23_wards
 from .jma_client import JmaClient
 from .jma_parser import parse_jma_xml
 from .storage import JsonStorage
+from .school_policy import decide_school_guidance
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +86,13 @@ def pipeline_once(
                     storage.update_status(a.id, "cancelled")
                 else:
                     storage.add(a.id, status="cancelled")
+
+    # 学校ガイダンスを送信（常に最新の判定を1通）。重複抑止は将来検討。
+    try:
+        guidance = decide_school_guidance(tokyo_alerts)
+        notifier.send_school_guidance(guidance)  # type: ignore[attr-defined]
+    except Exception as e:  # pylint: disable=broad-except-clause
+        logger.exception("Failed to send school guidance: %s", e)
 
     if total == 0:
         logger.info("No new alerts to send.")

@@ -7,7 +7,7 @@ from typing import Iterable, Optional
 import discord
 from discord.errors import HTTPException
 
-from .models import Alert
+from .models import Alert, SchoolGuidance
 
 logger = logging.getLogger(__name__)
 
@@ -174,4 +174,40 @@ class DiscordNotifier:
             return
 
         logger.error("Discord not configured for sending cancellation alerts.")
+        raise RuntimeError("Discord not configured. Set DISCORD_WEBHOOK_URL for sending.")
+
+    # --- School guidance ---
+    def _create_guidance_embed(self, g: SchoolGuidance) -> discord.Embed:
+        title = "登校ガイダンス"
+        dp = {"pre6": "6時判定前", "06": "6時判定", "08": "8時判定", "10": "10時判定"}.get(
+            g.decision_point, g.decision_point
+        )
+        desc_lines = [
+            f"日付: {g.date}",
+            f"判定: {dp}",
+            f"結果: {g.status}",
+        ]
+        if g.attend_time:
+            desc_lines.append(f"登校目安: {g.attend_time}")
+        if g.notes:
+            desc_lines.extend(["", *g.notes])
+
+        embed = discord.Embed(
+            title=title,
+            description="\n".join(desc_lines),
+            colour=discord.Color.blue(),
+        )
+        return embed
+
+    def send_school_guidance(self, guidance: SchoolGuidance) -> None:
+        embed = self._create_guidance_embed(guidance)
+        if self.dry_run:
+            logger.info("[DRY-RUN] Would send school guidance: %s", guidance.status)
+            return
+
+        if self.webhook_url:
+            self._send_via_webhook([embed])
+            return
+
+        logger.error("Discord not configured for sending school guidance.")
         raise RuntimeError("Discord not configured. Set DISCORD_WEBHOOK_URL for sending.")

@@ -48,3 +48,24 @@ class Alert:
             "link": self.link,
             "status": self.status,
         }
+
+
+@dataclass(frozen=True, slots=True)
+class SchoolGuidance:
+    """Decision object for school attendance guidance based on warning policy.
+
+    Attributes:
+        date: Local date string (YYYY-MM-DD, Asia/Tokyo)
+        decision_point: "06" | "08" | "10" | "pre6" (表示用)
+        weekday: 0=Mon .. 6=Sun (Japan local)
+        status: 「平常授業」「自宅待機」「自宅学習」「第3時限から授業」「午後から授業」など
+        attend_time: 具体的な登校目安時刻（必要時）
+        notes: 追加の注意書きリスト
+    """
+
+    date: str
+    decision_point: str
+    weekday: int
+    status: str
+    attend_time: Optional[str] = None
+    notes: Optional[list[str]] = None

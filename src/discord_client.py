@@ -96,6 +96,28 @@ class DiscordNotifier:
         )
         return embed
 
+    def _create_cancellation_embed(self, alert: Alert) -> discord.Embed:
+        """Create a Discord Embed for cancellation per the contract specs/003-/contracts/discord_cancellation_embed.md.
+
+        Structure:
+        - title: "【解除】気象警報・注意報"
+        - description: "以下の地域の警報・注意報は解除されました。"
+        - color: green
+        - fields: 地域, 解除された警報・注意報
+        - footer: 気象庁 | JMA
+        """
+        embed = discord.Embed(
+            title="【解除】気象警報・注意報",
+            description="以下の地域の警報・注意報は解除されました。",
+            colour=discord.Color.green(),
+            url=alert.link or None,
+            timestamp=alert.issued_at,
+        )
+        embed.add_field(name="地域", value=alert.ward or alert.area, inline=False)
+        embed.add_field(name="解除された警報・注意報", value=alert.category, inline=False)
+        embed.set_footer(text="気象庁 | JMA")
+        return embed
+
     def _send_via_webhook(self, embeds: list[discord.Embed]) -> None:
         from discord import SyncWebhook
 
@@ -131,4 +153,25 @@ class DiscordNotifier:
             return
 
         logger.error("Discord not configured for sending alerts.")
+        raise RuntimeError("Discord not configured. Set DISCORD_WEBHOOK_URL for sending.")
+
+    def send_cancellations(self, alerts: Iterable[Alert]) -> None:
+        """Send cancellation embeds. Alerts should have status='cancelled'."""
+        cancels = [a for a in alerts if getattr(a, "status", "active") == "cancelled"]
+        if not cancels:
+            logger.info("No cancellations to send.")
+            return
+        embeds = [self._create_cancellation_embed(a) for a in cancels]
+
+        if self.dry_run:
+            logger.info("[DRY-RUN] Would send %d cancellation alerts.", len(embeds))
+            for i, e in enumerate(embeds, 1):
+                logger.info("[DRY-RUN %d/%d] cancellation title=%s", i, len(embeds), e.title)
+            return
+
+        if self.webhook_url:
+            self._send_via_webhook(embeds)
+            return
+
+        logger.error("Discord not configured for sending cancellation alerts.")
         raise RuntimeError("Discord not configured. Set DISCORD_WEBHOOK_URL for sending.")

@@ -47,23 +47,51 @@ def pipeline_once(
     tokyo_alerts = pick_23_wards(alerts)
     logger.info(f"Filtered down to {len(tokyo_alerts)} alerts for Tokyo's 23 wards.")
 
+    # Partition by cancellation status
+    cancellations = [a for a in tokyo_alerts if getattr(a, "status", "active") == "cancelled"]
+    actives = [a for a in tokyo_alerts if getattr(a, "status", "active") != "cancelled"]
+
     storage = JsonStorage(SENT_IDS_FILE)
+
+    # Determine which to send
     if force_send:
-        new_alerts = list(tokyo_alerts)
+        to_send_active = list(actives)
+        to_send_cancel = list(cancellations)
     else:
-        new_alerts = [a for a in tokyo_alerts if not storage.has(a.id)]
-    if not new_alerts:
+        to_send_active = [a for a in actives if not storage.has(a.id)]
+        # For cancellations, send if unseen or not yet marked cancelled
+        to_send_cancel = [
+            a for a in cancellations if (not storage.has(a.id)) or (storage.get_status(a.id) != "cancelled")
+        ]
+
+    total = 0
+    notifier = DiscordNotifier(dry_run=dry_run)
+
+    if to_send_active:
+        logger.info("Found %d new active alerts to send.", len(to_send_active))
+        notifier.send_alerts(to_send_active)
+        total += len(to_send_active)
+        if not no_store:
+            storage.add_many((a.id for a in to_send_active), status="active")
+
+    if to_send_cancel:
+        logger.info("Found %d cancellations to send.", len(to_send_cancel))
+        notifier.send_cancellations(to_send_cancel)
+        total += len(to_send_cancel)
+        if not no_store:
+            # Update existing entries to cancelled if present; otherwise add as cancelled
+            for a in to_send_cancel:
+                if storage.has(a.id):
+                    storage.update_status(a.id, "cancelled")
+                else:
+                    storage.add(a.id, status="cancelled")
+
+    if total == 0:
         logger.info("No new alerts to send.")
         return 0
 
-    logger.info(f"Found {len(new_alerts)} new alerts to send.")
-    DiscordNotifier(dry_run=dry_run).send_alerts(new_alerts)
-    if not no_store:
-        storage.add_many(a.id for a in new_alerts)
-    else:
-        logger.info("No-store mode enabled; not recording sent IDs.")
-    logger.info("Finished sending and recording new alerts.")
-    return len(new_alerts)
+    logger.info("Finished sending and recording alerts. Total sent: %d", total)
+    return total
 
 
 def run_scheduler(jma_url: str, interval_minutes: int = 5) -> None:

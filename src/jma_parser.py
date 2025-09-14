@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from hashlib import sha256
 from typing import List
 
-from lxml import etree
+import lxml.etree as ET  # type: ignore[reportMissingImports]
 
 from .models import Alert
 
@@ -28,9 +28,11 @@ def _text(node, xpath: str) -> str | None:
     res = node.xpath(xpath)
     if not res:
         return None
-    if isinstance(res[0], etree._Element):
-        return res[0].text
-    return str(res[0])
+    first = res[0]
+    # Avoid referencing private Element types; use duck typing
+    if hasattr(first, "text"):
+        return getattr(first, "text")
+    return str(first)
 
 
 def parse_jma_xml(xml_bytes: bytes) -> List[Alert]:
@@ -40,12 +42,15 @@ def parse_jma_xml(xml_bytes: bytes) -> List[Alert]:
         return []
 
     try:
-        root = etree.fromstring(xml_bytes)
-    except etree.XMLSyntaxError as e:
+        root = ET.fromstring(xml_bytes)
+    except ET.XMLSyntaxError as e:
         logger.exception(f"Failed to parse JMA XML: {e}")
         return []
 
     title = _text(root, "//Head/Title/text()") or _text(root, "//Report/Head/Headline/Text/text()")
+    info_type = _text(root, "//Head/InfoType/text()") or _text(
+        root, "//Report/Head/InfoType/text()"
+    )
     issued_str = _text(root, "//Head/ReportDateTime/text()") or _text(
         root, "//Report/Head/ReportDateTime/text()"
     )
@@ -79,6 +84,12 @@ def parse_jma_xml(xml_bytes: bytes) -> List[Alert]:
             or "Unknown"
         )
 
+        # Determine cancellation status
+        status_value = "active"
+        sev_norm = (severity or "").strip()
+        if (info_type or "").strip() == "取消" or sev_norm == "解除":
+            status_value = "cancelled"
+
         primitive = {
             "title": title or f"{category} - {area_name}",
             "area": area_name,
@@ -86,13 +97,12 @@ def parse_jma_xml(xml_bytes: bytes) -> List[Alert]:
             "severity": severity,
             "issued_at": issued_at.isoformat(),
         }
+        # Stable ID across updates/cancellations: area + category only
         alert_id = sha256(
             "|".join(
                 [
                     primitive["area"],
                     primitive["category"],
-                    primitive["severity"],
-                    primitive["issued_at"],
                 ]
             ).encode("utf-8")
         ).hexdigest()[:16]
@@ -108,12 +118,15 @@ def parse_jma_xml(xml_bytes: bytes) -> List[Alert]:
                 issued_at=issued_at,
                 expires_at=None,
                 link=None,
+                status=status_value,
                 raw=primitive,
             )
         )
 
     if not alerts and title:
-        logger.warning(f"No alert items found, creating a fallback alert for title: '{title}'")
+        logger.warning(
+            f"No alert items found, creating a fallback alert for title: '{title}'"
+        )
         alert_id = sha256((title + issued_at.isoformat()).encode("utf-8")).hexdigest()[:16]
         alerts.append(
             Alert(
@@ -126,6 +139,7 @@ def parse_jma_xml(xml_bytes: bytes) -> List[Alert]:
                 issued_at=issued_at,
                 expires_at=None,
                 link=None,
+                status="active",
                 raw={"title": title},
             )
         )

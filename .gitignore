@@ -25,3 +25,6 @@ htmlcov/
 # Local data
 /data/
 .env
+
+.gemini/
+gha-creds-*.json

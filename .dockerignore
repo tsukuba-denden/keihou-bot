@@ -1,0 +1,26 @@
+# Git and environment files
+.git
+.gitignore
+.env
+
+# Virtual environment
+.venv
+
+# IDE and cache files
+.vscode
+.pytest_cache
+__pycache__/
+*.pyc
+
+# Local data and documentation
+data/
+memory/
+specs/
+templates/
+tests/
+
+# Project and config files we don't need in the image
+.pylintrc
+.gemini/
+pyrightconfig.json
+README.md

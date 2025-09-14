@@ -1,21 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Report>
-  <Head>
-    <Title>気象警報・注意報</Title>
-    <InfoType>取消</InfoType>
-    <ReportDateTime>2024-01-01T12:00:00Z</ReportDateTime>
-  </Head>
-  <Body>
-    <Warning>
-      <Item>
-        <Area>
-          <Name>東京都千代田区</Name>
-        </Area>
-        <Kind>
-          <Name>大雨警報</Name>
-          <Status>警報</Status>
-        </Kind>
-      </Item>
-    </Warning>
-  </Body>
+    <Head>
+        <Title>気象警報・注意報</Title>
+        <InfoType>取消</InfoType>
+        <ReportDateTime>2024-01-01T12:00:00Z</ReportDateTime>
+    </Head>
+    <Body>
+        <Warning>
+            <Item>
+                <Area>
+                    <Name>東京都千代田区</Name>
+                </Area>
+                <Kind>
+                    <Name>大雨警報</Name>
+                    <Status>警報</Status>
+                </Kind>
+            </Item>
+        </Warning>
+    </Body>
 </Report>

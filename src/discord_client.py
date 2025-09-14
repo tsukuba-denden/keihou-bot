@@ -198,10 +198,22 @@ class DiscordNotifier:
         dp = {"pre6": "6時判定前", "06": "6時判定", "08": "8時判定", "10": "10時判定"}.get(
             g.decision_point, g.decision_point
         )
+        # 表示専用の結果行を整形（例: 8時判定で自宅学習 → 「少なくとも10時までは自宅学習」）
+        def _format_result_line(g: SchoolGuidance) -> str:
+            # 6時判定時は8時までに再判定があるため、待機系は「少なくとも8時まで」を明示
+            if g.decision_point == "06" and g.status == "自宅待機":
+                return "結果: 少なくとも8時までは自宅待機"
+            # 8時判定の段階で自宅学習が確定しているのは月・土のみ（ポリシー）。
+            # この場合、10時の最終判定までは継続のため、「少なくとも10時までは自宅学習」と表現する。
+            if g.status == "自宅学習" and g.decision_point == "08":
+                return "結果: 少なくとも10時までは自宅学習"
+            # それ以外は従来通りのステータスをそのまま表示
+            return f"結果: {g.status}"
+
         desc_lines = [
             f"日付: {g.date}",
             f"判定: {dp}",
-            f"結果: {g.status}",
+            _format_result_line(g),
         ]
         if g.attend_time:
             desc_lines.append(f"登校目安: {g.attend_time}")
